@@ -1,0 +1,62 @@
+import fedot as ft
+from scipy import optimize
+from sklearn.metrics import mean_squared_error
+
+df = pd.read_csv("sales_data.csv")
+
+train_size = int(0.8 * len(df))
+test_size = len(df) - train_size
+train, test = df[:train_size], df[train_size:]
+def arima_model(p, d, q):
+    # Создание модели ARIMA
+    model = ARIMA(train["Sales"], order=(p, d, q))
+    model.fit(disp=0)
+    forecast = model.predict(start=len(train), end=len(test))
+    return forecast
+# Оптимизация параметров с использованием FEDOT
+def optimize_parameters(train, test):
+    def objective(params):
+        p, d, q = params
+        forecast = arima_model(p, d, q)
+        mse = mean_squared_error(test["Sales"], forecast)
+        return mse
+
+    result = ft.optimizer.minimize(objective, [1, 0, 1], verbose=True)
+    return result
+# Оценка результатов
+def evaluate_results(train, test, result):
+    p, d, q = result["opt_params"]
+    forecast = arima_model(p, d, q)
+
+    mse = mean_squared_error(test["Sales"], forecast)
+    mae = mean_absolute_error(test["Sales"], forecast)
+    r2 = r2_score(test["Sales"], forecast)
+
+    print("MSE:", mse)
+    print("MAE:", mae)
+    print("R^2:", r2)
+# Анализ результатов
+def analyze_results(train, test, result):
+    p, d, q = result["opt_params"]
+    forecast = arima_model(p, d, q)
+    mse = mean_squared_error(test["Sales"], forecast)
+    mae = mean_absolute_error(test["Sales"], forecast)
+    r2 = r2_score(test["Sales"], forecast)
+    print("MSE:", mse)
+    print("MAE:", mae)
+    print("R^2:", r2)
+    # Визуализация 
+    plt.plot(test.index, test["Sales"])
+    plt.plot(forecast.index, forecast)
+    plt.title("Продажи автомобилей")
+    plt.xlabel("Дата")
+    plt.ylabel("Продажи")
+    plt.legend(["Фактические продажи", "Прогнозируемые продажи"])
+    plt.show()
+
+    # Применение модели для прогнозирования
+    future_dates = pd.date_range(start=test.index[-1], periods=10)
+    future = arima_model(p, d, q).predict(future_dates)
+    predicted_sales = future.values
+
+    return predicted_sales
